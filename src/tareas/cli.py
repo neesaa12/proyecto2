@@ -5,15 +5,18 @@ from pathlib import Path
 
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8")
+if hasattr(sys.stderr, "reconfigure"):
+    sys.stderr.reconfigure(encoding="utf-8")
 
 import typer
 from typer import core as typer_core
 from typer import rich_utils
-from typer._click import core as click_core
 from typer._click import decorators as click_decorators
 from typer._click import formatting as click_formatting
 
 from tareas import __version__
+from tareas.config import ErrorConfiguracion, leer_acciones, ruta_acciones
+from tareas.ejecucion import ErrorEjecucion, ejecutar_accion
 
 _TRADUCCIONES = {
     "Arguments": "Argumentos",
@@ -21,6 +24,7 @@ _TRADUCCIONES = {
     "Commands": "Comandos",
     "Error": "Error",
     "Aborted.": "Abortado.",
+    "[required]": "[obligatorio]",
     "Show this message and exit.": "Muestra este mensaje y sale.",
     "Try [blue]'{command_path} {help_option}'[/] for help.": (
         "Prueba [blue]'{command_path} {help_option}'[/] para obtener ayuda."
@@ -42,6 +46,7 @@ def _configurar_ayuda_en_espanol() -> None:
     rich_utils.COMMANDS_PANEL_TITLE = _traducir("Commands")
     rich_utils.ERRORS_PANEL_TITLE = _traducir("Error")
     rich_utils.ABORTED_TEXT = _traducir("Aborted.")
+    rich_utils.REQUIRED_LONG_STRING = _traducir("[required]")
     rich_utils.RICH_HELP = _traducir(
         "Try [blue]'{command_path} {help_option}'[/] for help."
     )
@@ -82,14 +87,68 @@ app = typer.Typer(
 )
 
 
+def _fallar_configuracion(exc: ErrorConfiguracion) -> None:
+    for mensaje in exc.mensajes:
+        typer.echo(f"Error: {mensaje}", err=True)
+    raise typer.Exit(code=1)
+
+
 @app.command("version")
 def version() -> None:
     """Muestra la versión del proyecto."""
     typer.echo(__version__)
 
 
+@app.command("validar")
+def validar() -> None:
+    """Comprueba que acciones.json cumple el esquema documentado."""
+    try:
+        acciones = leer_acciones()
+    except ErrorConfiguracion as exc:
+        _fallar_configuracion(exc)
+    typer.echo(f"acciones.json es válido: {len(acciones)} acciones.")
+
+
 @app.command("listar")
 def listar() -> None:
-    """Lista las acciones configuradas."""
-    if not Path("acciones.json").exists():
+    """Muestra los identificadores de las acciones configuradas."""
+    if not ruta_acciones().is_file():
         typer.echo("Todavía no hay acciones configuradas")
+        return
+    try:
+        acciones = leer_acciones()
+    except ErrorConfiguracion as exc:
+        _fallar_configuracion(exc)
+    for accion in acciones:
+        typer.echo(accion.id)
+
+
+@app.command("ejecutar")
+def ejecutar(
+    identificador: str = typer.Argument(..., help="Identificador de la acción."),
+    directorio: Path = typer.Option(
+        ..., "--directorio", help="Carpeta de trabajo para entradas y salidas."
+    ),
+    simular: bool = typer.Option(
+        False, "--simular", help="Muestra qué haría sin escribir nada."
+    ),
+) -> None:
+    """Ejecuta una acción por su identificador."""
+    try:
+        acciones = leer_acciones()
+    except ErrorConfiguracion as exc:
+        _fallar_configuracion(exc)
+
+    accion = next((item for item in acciones if item.id == identificador), None)
+    if accion is None:
+        typer.echo(f"Error: no existe la acción '{identificador}'.", err=True)
+        raise typer.Exit(code=1)
+
+    try:
+        mensajes = ejecutar_accion(accion, directorio, simular)
+    except ErrorEjecucion as exc:
+        typer.echo(f"Error: {exc}", err=True)
+        raise typer.Exit(code=1) from exc
+
+    for mensaje in mensajes:
+        typer.echo(mensaje)
