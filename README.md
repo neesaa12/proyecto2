@@ -1,22 +1,59 @@
 # CLI de tareas
 
-Herramienta de línea de comandos para preparar una entrega de clase. El proyecto define acciones locales para reunir apuntes y capturas y crear un índice, además de dos acciones que usan el modelo del centro: `mostrar_resumen` y `mostrar_tema`.
+Herramienta de línea de comandos para preparar una entrega de clase. Define acciones locales para reunir apuntes y capturas y crear un índice, además de dos acciones pensadas para usar el modelo del centro: `mostrar_resumen` y `mostrar_tema`.
 
-## Uso
+> **Estado de la versión 1.0.0:** las acciones locales están listas para usar. **La conexión real con el modelo del centro está pendiente de probar**: las dos acciones IA validan la configuración y explican qué protocolo falta, pero todavía no envían peticiones.
 
-Desde la raíz del proyecto se pueden ejecutar estos comandos:
+## Instalación
 
-- `uv run tareas --help` muestra la ayuda en español.
-- `uv run tareas version` muestra la versión del proyecto.
-- `uv run tareas validar` comprueba `acciones.json` y señala los errores encontrados.
-- `uv run tareas listar` muestra los identificadores de las acciones configuradas.
-- `uv run tareas ejecutar ID --directorio RUTA` aplica la acción indicada.
-- `uv run tareas ejecutar ID --directorio RUTA --simular` muestra qué haría sin copiar ficheros, crear carpetas, escribir el índice ni enviar texto al modelo.
-- `uv run tareas comprobar-ia` comprueba la configuración del proveedor IA sin revelar credenciales.
+Necesitas tener [uv](https://docs.astral.sh/uv/) instalado. Cuando la etiqueta `v1.0.0` esté publicada en el repositorio, instala la herramienta con esta orden, lista para copiar:
 
-`acciones.json` se lee desde la raíz del proyecto. `--directorio` es la carpeta de trabajo: todas las rutas relativas del JSON (`origen` y `destino`) se resuelven dentro de ella. Los archivos de destino existentes no se sobrescriben; se omiten y se informa.
+```shell
+uv tool install "git+https://github.com/neesaa12/proyecto2.git@v1.0.0"
+```
 
-Identificadores actuales: `reunir-apuntes`, `reunir-capturas`, `crear-indice`, `resumir-apunte` y `clasificar-apunte`.
+Después el comando `tareas` está disponible desde cualquier carpeta; no hace falta activar un entorno virtual ni usar `uv run`. Los enlaces a `acciones.json` y `.env.example` de esta versión que aparecen más abajo también dependen de esa etiqueta. Para comprobar la instalación:
+
+```shell
+tareas --help
+tareas version
+```
+
+`tareas version` debe mostrar `1.0.0`.
+
+Si trabajas directamente desde una copia del repositorio, sin instalarla como herramienta, las mismas órdenes se ejecutan como `uv run tareas --help`, `uv run tareas version`, etc., después de `uv sync --dev`.
+
+## Uso desde otra carpeta
+
+Estos comandos funcionan desde cualquier directorio una vez instalada la herramienta:
+
+- `tareas --help` muestra la ayuda en español.
+- `tareas version` muestra la versión del programa.
+- `tareas validar` comprueba `acciones.json` y señala los errores encontrados.
+- `tareas listar` muestra los identificadores de las acciones configuradas.
+- `tareas ejecutar ID --directorio RUTA` aplica la acción indicada.
+- `tareas ejecutar ID --directorio RUTA --simular` muestra qué haría sin copiar ficheros, crear carpetas, escribir el índice ni enviar texto al modelo.
+- `tareas comprobar-ia` revisa la configuración del proveedor IA del centro sin revelar credenciales.
+
+## Dónde poner `acciones.json`
+
+`tareas validar`, `tareas listar` y `tareas ejecutar` leen **`acciones.json` de la carpeta desde la que llamas al comando**, no de la carpeta donde se instaló `tareas` ni de la que indiques con `--directorio`. La instalación con `uv tool install` no incluye ese fichero. Puedes descargar el ejemplo de la versión `v1.0.0` y guardarlo como `acciones.json` en tu carpeta de trabajo:
+
+- https://raw.githubusercontent.com/neesaa12/proyecto2/v1.0.0/acciones.json
+
+Edítalo a mano para definir tus propias acciones; no hace falta cambiar el código Python.
+
+`--directorio` señala la carpeta de trabajo para entradas y salidas: todas las rutas relativas del JSON (`origen` y `destino`) se resuelven dentro de ella. Por ejemplo, desde tu carpeta de entrega:
+
+```shell
+tareas listar
+tareas validar
+tareas ejecutar crear-indice --directorio .
+```
+
+Los archivos de destino existentes no se sobrescriben; se omiten y se informa.
+
+Identificadores incluidos en el fichero de ejemplo: `reunir-apuntes`, `reunir-capturas`, `crear-indice`, `resumir-apunte` y `clasificar-apunte`.
 
 ## Formato de acciones.json
 
@@ -45,7 +82,7 @@ Las tres acciones locales funcionan sin conexión y sin credenciales del centro.
 
 `mostrar_resumen` y `mostrar_tema` leen archivos de texto y muestran el resultado en la terminal precedido del `id` de la acción y del nombre del fichero. No escriben ficheros ni modifican los originales. En `--simular` solo se listan los ficheros que se enviarían; no se lee su contenido para envío y no se crea ninguna conexión.
 
-La configuración local se declara en `.env.example`. Copia ese fichero a `.env`, rellena los valores y expórtalos en tu sesión antes de ejecutar:
+La configuración local se declara en `.env.example`, que puedes descargar desde https://raw.githubusercontent.com/neesaa12/proyecto2/v1.0.0/.env.example. Copia ese fichero a `.env`, rellena los valores y expórtalos en tu sesión antes de ejecutar:
 
 ```powershell
 $env:TAREAS_IA_URL = "valor-de-la-clase"
@@ -61,7 +98,7 @@ El programa **no lee** `.env`; solo consulta variables de entorno. La clave nunc
 - `TAREAS_IA_CA` es opcional. Si se configura, se crea un contexto SSL con `ssl.create_default_context(cafile=...)` o `capath=...` y se pasa a `httpx.Client(verify=ctx)`. La verificación TLS permanece activa; nunca se usa `verify=False`.
 - Si faltan variables, hay un fallo de red o el centro rechaza la autenticación, la CLI muestra un mensaje en español y termina con código distinto de cero, sin traceback.
 
-Las operaciones IA necesitan además el contrato técnico del centro: método HTTP, ruta, esquema del cuerpo de petición, campo donde enviar el texto y campo de respuesta con el resultado. Mientras ese contrato no se indique, la CLI no inventa la URL, el modelo ni el protocolo: `comprobar-ia` valida la configuración local y explica qué dato falta para poder enviar una petición de prueba.
+**Pendiente de probar:** la conexión real con el modelo del centro. Hacen falta el contrato técnico del centro —método HTTP, ruta, esquema del cuerpo de petición, campo donde enviar el texto y campo de respuesta con el resultado— y la confirmación del modelo. Mientras no se indiquen, la CLI no inventa la URL, el modelo ni el protocolo: `comprobar-ia` valida la configuración local y crea el cliente HTTPX, pero no contacta con el centro, y las dos acciones IA avisan de lo que falta en lugar de enviar una petición.
 
 ## Acciones de la entrega
 

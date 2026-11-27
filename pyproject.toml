@@ -1,7 +1,7 @@
 [project]
 name = "tareas"
-version = "0.1.0"
-description = "Add your description here"
+version = "1.0.0"
+description = "CLI para preparar una entrega de clase: reunir apuntes y capturas, crear un índice y acciones IA."
 readme = "README.md"
 authors = [
     { name = "neesaa12", email = "vanpetayg@alu.edu.gva.es" }
