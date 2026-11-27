@@ -1,0 +1,31 @@
+[
+  {
+    "id": "reunir-apuntes",
+    "operacion": "copiar",
+    "patron": "*.pdf",
+    "destino": "entregar/apuntes"
+  },
+  {
+    "id": "reunir-capturas",
+    "operacion": "copiar",
+    "patron": "*.png",
+    "destino": "entregar/capturas"
+  },
+  {
+    "id": "crear-indice",
+    "operacion": "crear_indice",
+    "patron": "**/*",
+    "origen": "entregar",
+    "destino": "entregar/indice.txt"
+  },
+  {
+    "id": "resumir-apunte",
+    "operacion": "mostrar_resumen",
+    "patron": "*.txt"
+  },
+  {
+    "id": "clasificar-apunte",
+    "operacion": "mostrar_tema",
+    "patron": "*.txt"
+  }
+]
