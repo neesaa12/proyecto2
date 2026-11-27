@@ -14,7 +14,7 @@ from typer import rich_utils
 from typer._click import decorators as click_decorators
 from typer._click import formatting as click_formatting
 
-from tareas import __version__
+from tareas import __version__, ia
 from tareas.config import ErrorConfiguracion, leer_acciones, ruta_acciones
 from tareas.ejecucion import ErrorEjecucion, ejecutar_accion
 
@@ -123,6 +123,18 @@ def listar() -> None:
         typer.echo(accion.id)
 
 
+@app.command("comprobar-ia")
+def comprobar_ia() -> None:
+    """Comprueba la configuración del proveedor IA del centro."""
+    try:
+        mensajes = ia.comprobar()
+    except ia.ErrorIA as exc:
+        typer.echo(f"Error: {exc}", err=True)
+        raise typer.Exit(code=1) from exc
+    for mensaje in mensajes:
+        typer.echo(mensaje)
+
+
 @app.command("ejecutar")
 def ejecutar(
     identificador: str = typer.Argument(..., help="Identificador de la acción."),
@@ -146,7 +158,7 @@ def ejecutar(
 
     try:
         mensajes = ejecutar_accion(accion, directorio, simular)
-    except ErrorEjecucion as exc:
+    except (ErrorEjecucion, ia.ErrorIA) as exc:
         typer.echo(f"Error: {exc}", err=True)
         raise typer.Exit(code=1) from exc
 

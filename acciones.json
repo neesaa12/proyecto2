@@ -17,5 +17,15 @@
     "patron": "**/*",
     "origen": "entregar",
     "destino": "entregar/indice.txt"
+  },
+  {
+    "id": "resumir-apunte",
+    "operacion": "mostrar_resumen",
+    "patron": "*.txt"
+  },
+  {
+    "id": "clasificar-apunte",
+    "operacion": "mostrar_tema",
+    "patron": "*.txt"
   }
 ]

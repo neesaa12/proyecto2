@@ -5,9 +5,18 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-OPERACIONES_CONOCIDAS = {"copiar", "crear_indice"}
-CAMPOS_COMUNES = ("id", "operacion", "patron", "destino")
-CAMPOS_EXTRA = {"crear_indice": ("origen",)}
+CAMPOS_BASE = ("id", "operacion", "patron")
+CAMPOS_POR_OPERACION = {
+    "copiar": CAMPOS_BASE + ("destino",),
+    "crear_indice": CAMPOS_BASE + ("origen", "destino"),
+    "mostrar_resumen": CAMPOS_BASE,
+    "mostrar_tema": CAMPOS_BASE,
+}
+CAMPOS_OPCIONALES_POR_OPERACION = {
+    "mostrar_resumen": ("origen",),
+    "mostrar_tema": ("origen",),
+}
+OPERACIONES_CONOCIDAS = set(CAMPOS_POR_OPERACION)
 
 
 @dataclass(frozen=True)
@@ -15,8 +24,8 @@ class Accion:
     id: str
     operacion: str
     patron: str
-    destino: str
     origen: str | None = None
+    destino: str | None = None
 
 
 class ErrorConfiguracion(Exception):
@@ -78,14 +87,28 @@ def validar_acciones(
             etiqueta += f" ('{id_valor}')"
 
         operacion = elemento.get("operacion")
-        campos = (
-            CAMPOS_COMUNES + CAMPOS_EXTRA.get(operacion, ())
-            if isinstance(operacion, str)
-            else CAMPOS_COMUNES
+        operacion_valida = isinstance(operacion, str) and operacion.strip()
+        requeridos = (
+            CAMPOS_POR_OPERACION.get(operacion, CAMPOS_BASE)
+            if operacion_valida
+            else CAMPOS_BASE
+        )
+        opcionales = (
+            CAMPOS_OPCIONALES_POR_OPERACION.get(operacion, ())
+            if operacion_valida
+            else ()
         )
 
+        if operacion_valida and operacion not in OPERACIONES_CONOCIDAS:
+            errores.append(f"{etiqueta}: operación desconocida '{operacion}'.")
+
+        permitidos = set(requeridos) | set(opcionales)
+        for campo in elemento:
+            if campo not in permitidos:
+                errores.append(f"{etiqueta}: el campo '{campo}' no es admitido.")
+
         datos_validos: dict[str, str] = {}
-        for campo in campos:
+        for campo in requeridos:
             if campo not in elemento:
                 errores.append(f"{etiqueta}: falta el campo '{campo}'.")
                 continue
@@ -95,12 +118,14 @@ def validar_acciones(
                 continue
             datos_validos[campo] = valor
 
-        if (
-            isinstance(operacion, str)
-            and operacion.strip()
-            and operacion not in OPERACIONES_CONOCIDAS
-        ):
-            errores.append(f"{etiqueta}: operación desconocida '{operacion}'.")
+        for campo in opcionales:
+            if campo not in elemento:
+                continue
+            valor = elemento[campo]
+            if not isinstance(valor, str) or not valor.strip():
+                errores.append(f"{etiqueta}: el campo '{campo}' no puede estar vacío.")
+                continue
+            datos_validos[campo] = valor
 
         id_limpio = datos_validos.get("id")
         if id_limpio is not None:
@@ -109,14 +134,14 @@ def validar_acciones(
             else:
                 vistos.add(id_limpio)
 
-        if all(campo in datos_validos for campo in campos):
+        if all(campo in datos_validos for campo in requeridos):
             acciones.append(
                 Accion(
                     id=datos_validos["id"],
                     operacion=datos_validos["operacion"],
                     patron=datos_validos["patron"],
-                    destino=datos_validos["destino"],
                     origen=datos_validos.get("origen"),
+                    destino=datos_validos.get("destino"),
                 )
             )
 
