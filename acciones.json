@@ -1,0 +1,21 @@
+[
+  {
+    "id": "reunir-apuntes",
+    "operacion": "copiar",
+    "patron": "*.pdf",
+    "destino": "entregar/apuntes"
+  },
+  {
+    "id": "reunir-capturas",
+    "operacion": "copiar",
+    "patron": "*.png",
+    "destino": "entregar/capturas"
+  },
+  {
+    "id": "crear-indice",
+    "operacion": "crear_indice",
+    "patron": "**/*",
+    "origen": "entregar",
+    "destino": "entregar/indice.txt"
+  }
+]
